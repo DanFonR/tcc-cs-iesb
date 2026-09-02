@@ -1,10 +1,8 @@
 OLS_VARIANTS :=
-HQR_VARIANTS := $(foreach var,base native,hqr_$(var)_gcc)
 
 FLAGS_o0 := -O0
 FLAGS_o2 := -O2
 FLAGS_native := -O3 -march=native
-FLAGS_parallel = $(FLAGS_native) -fopenmp -DPARALLEL
 
 all : main
 

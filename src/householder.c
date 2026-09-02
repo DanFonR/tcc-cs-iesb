@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <time.h>
+#include <openblas/lapacke.h>
 #include "linearreg.h"
 #include "tests.h"
 
@@ -20,6 +21,6 @@ Results hqr_linear_regression(
         return (Results){0};
     }
 
-    return (Results){0};
+    return (Results){0}; // WIP
     // double x = X[i * n_features + j];
 }

@@ -38,6 +38,6 @@ typedef const double * matrix;
 /**
  * @brief A type specifically to force some optimizations
  */
-typedef matrix restrict matrix_ref;
+typedef const double * restrict matrix_ref;
 
 #endif
