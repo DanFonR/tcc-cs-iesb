@@ -11,6 +11,14 @@
 #define TESTS_H
 
 #include "lrcommons.h"
+#include <time.h>
+
+#define TIMEIT(func_call, start, end) \
+do { \
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start); \
+    func_call; \
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end); \
+} while (0)
 
 /* Clang tests */
 
@@ -30,5 +38,8 @@ Results ols_parallel_gcc(matrix, matrix, size_t, size_t);
 
 Results hqr_base_gcc(matrix, matrix, size_t, size_t);
 Results hqr_native_gcc(matrix, matrix, size_t, size_t);
+
+double timedelta(struct timespec, struct timespec);
+void residuals(Results, matrix_ref, matrix_ref, matrix_ref, size_t, size_t);
 
 #endif

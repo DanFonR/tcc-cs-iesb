@@ -3,6 +3,6 @@
 
 bin/*
 build/*
-data/*
+data/*.bin
 
 !.gitkeep

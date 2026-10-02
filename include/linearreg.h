@@ -22,7 +22,7 @@
  * 
  * @return Coefficients, residuals, and time results
  */
-Results ols_linear_regression(
+Results ne_linear_regression(
     matrix_ref X, matrix_ref Y,
     size_t n_samples,
     size_t n_features
