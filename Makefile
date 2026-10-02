@@ -30,12 +30,12 @@ main : $(OLS_VARIANTS) $(HQR_VARIANTS)
 
 hqr_base_gcc :
 	@ echo $@
-	@ gcc -O0 -Iinclude -Dhqr_linear_regression=$@ \
+	@ gcc -O0 -Iinclude -Dlapack_linear_regression=$@ \
 	-c ./src/householder.c -o ./build/$@.o
 
 hqr_native_gcc :
 	@ echo $@
-	@ gcc $(FLAGS_native) -Iinclude -Dhqr_linear_regression=$@ \
+	@ gcc $(FLAGS_native) -Iinclude -Dlapack_linear_regression=$@ \
 	-c ./src/householder.c -o ./build/$@.o -fopt-info-vec
 
 clean :
