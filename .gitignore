@@ -4,5 +4,6 @@
 bin/*
 build/*
 data/*.bin
+data/*.csv
 
 !.gitkeep

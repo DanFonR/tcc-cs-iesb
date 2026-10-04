@@ -1,119 +1,154 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <errno.h>
 
 #define SEED 42
 #define RAND() ((double)rand() / (double)RAND_MAX)
 
+#define EPSILON 0.001
+
+static inline double noise() {
+    return (EPSILON * (2.0 * RAND() - 1.0));
+}
+
+typedef enum {
+    NO_ERROR = -1,
+    DESIGN_MATRIX,
+    RESULT_MATRIX,
+    COEF_MATRIX,
+    WELL_COND,
+    ILL_COND
+} err_codes;
+
+typedef enum { WELL, ILL } cond_type;
+
+void prog_exit(
+    FILE *fp, double **allocs[], size_t n_allocs,
+    err_codes err,
+    int exit_status
+) {
+    const char *reasons[] = {
+        "failed to allocate design matrix\n",
+        "failed to allocate result matrix\n",
+        "failed to allocate coefficients matrix\n",
+        "failed to open well-conditioned file\n",
+        "failed to open ill-conditioned file\n",
+    };
+
+    for (size_t i = 0; i < n_allocs; i++)
+        free(*(allocs[i]));
+
+    if (fp != NULL) fclose(fp);
+
+    if (err != NO_ERROR) fputs(reasons[err], stderr);
+
+    exit(exit_status);
+}
+
+void gen_dataset(
+    cond_type cond,
+    double *X, double *y, double *beta,
+    size_t n_samples, size_t n_features
+) {
+    /* Populating betas */
+    for (size_t i = 0; i < n_features; i++)
+    beta[i] = RAND();
+
+    /* Populating X */
+    for (size_t i = 0; i < n_samples; i++) {
+        X[i * n_features] = 1; /* Intercept */
+
+        for (size_t j = 1; j < n_features; j++)
+            X[i * n_features + j] = (cond == WELL || j % 2 == 1)?
+                RAND() : X[i * n_features + j - 1] + noise();
+    }
+
+    /* Populating Y */
+    for (size_t i = 0; i < n_samples; i++) {
+        double val = 0.0;
+
+        for (size_t j = 0; j < n_features; j++) 
+            val += X[i * n_features + j] * beta[j];
+
+        y[i] = val + noise();
+    }
+}
+
+void write_dataset(
+    cond_type cond,
+    const double *X, const double *y, const double *beta,
+    size_t n_samples, size_t n_features
+) {
+    char filename[32];
+    double *matrices[] = {X, y, beta};
+    size_t matrices_len = sizeof(matrices) / sizeof(*matrices);
+    err_codes code;
+
+    if (cond == WELL) {
+        snprintf(
+            filename, sizeof(filename),
+            "data/wellcond/datawell%zu.bin", n_features
+        );
+        code = WELL_COND;
+    }
+    else {
+        snprintf(
+            filename, sizeof(filename),
+            "data/illcond/dataill%zu.bin", n_features
+        );
+        code = ILL_COND;
+    }
+
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) prog_exit(fp, matrices, matrices_len, code, EXIT_FAILURE);
+
+    if (
+        fwrite(n_samples, sizeof(size_t), 1, fp) != 1 ||
+        fwrite(n_features, sizeof(size_t), 1, fp) != 1 ||
+        fwrite(beta, sizeof(double), n_features, fp) != n_features ||
+        fwrite(y, sizeof(double), n_samples, fp) != n_samples ||
+        fwrite(X, sizeof(double), n_features * n_samples, fp)
+            != n_features * n_samples
+    )
+        prog_exit(fp, matrices, matrices_len, code, EXIT_FAILURE);
+}
+
 /* layout: beta, y, x */
 
 int main() {
-    const size_t n_samples = 1000000, n_features = 10;
-    const double epsilon = 0.001;
-    int status_code = EXIT_SUCCESS;
+    const size_t n_samples = 1000000, init_n_features = 100 + 1;
+    double *X = NULL, *y = NULL, *beta = NULL;
+    double **matrices[] = {&X, &y, &beta};
+    size_t matrices_len = sizeof(matrices) / sizeof(*matrices);
 
-    FILE *fp;
-    double *X, *y, *beta;
+    X = malloc(n_samples * init_n_features * sizeof(double));
+    if (!X)
+        prog_exit(NULL, matrices, matrices_len, DESIGN_MATRIX, EXIT_FAILURE);
 
-    X = malloc(n_samples * n_features * sizeof(size_t));
-    if (!X) {
-        fputs("failed to allocate design matrix\n", stderr);
-        exit(EXIT_FAILURE);
-    }
+    y = malloc(n_samples * sizeof(double));
+    if (!y)
+        prog_exit(NULL, matrices, matrices_len, RESULT_MATRIX, EXIT_FAILURE);
 
-    y = malloc(n_samples * sizeof(size_t));
-    if (!y) {
-        fputs("failed to allocate result matrix\n", stderr);
-        status_code = EXIT_FAILURE;
-        goto done_x;
-    }
-
-    beta = malloc(n_features * sizeof(size_t));
-    if (!beta) {
-        fputs("failed to allocate coefficients matrix\n", stderr);
-        status_code = EXIT_FAILURE;
-        goto done_y;
-    }
-
-    fp = fopen("data/datarand.bin", "wb");
-    if (!fp) {
-        fputs("failed to open well-conditioned file\n", stderr);
-        status_code = EXIT_FAILURE;
-        goto done_beta;
-    }
+    beta = malloc(init_n_features * sizeof(double));
+    if (!beta)
+        prog_exit(NULL, matrices, matrices_len, COEF_MATRIX, EXIT_FAILURE);
 
     srand(SEED);
 
-    for (size_t i = 0; i < n_features; i++)
-        beta[i] = RAND();
+    for (int n = 0; n < 11; n++) {
+        const size_t n_features = (n == 0)? 1 : 10 * n;
 
-    for (size_t i = 0; i < n_samples; i++)
-        for (size_t j = 0; j < n_features; j++)
-            X[i * n_features + j] = RAND();
-
-    for (size_t i = 0; i < n_samples; i++) {
-        double val = 0.0;
-
-        for (size_t j = 0; j < n_features; j++) 
-            val += X[i * n_features + j] * beta[j];
-
-        y[i] = val + epsilon * (2.0 * RAND() - 1.0);
+        /* +1 for intercept */
+        gen_dataset(WELL, X, y, beta, n_samples, n_features + 1);
+        write_dataset(WELL, X, y, beta, n_samples, n_features + 1);
     }
 
-    if (
-        fwrite(beta, sizeof(double), n_features, fp) != n_features ||
-        fwrite(y, sizeof(double), n_samples, fp) != n_samples ||
-        fwrite(X, sizeof(double), n_features * n_samples, fp) != n_features * n_samples
-    ) {
-        fputs("error writing to datarand.bin\n", stderr);
-        status_code = EXIT_FAILURE;
-        goto done_file;
+    for (int n = 0; n < 11; n++) {
+        const size_t n_features = (n == 0)? 1 : 10 * n;
+
+        gen_dataset(ILL, X, y, beta, n_samples, n_features + 1);
+        write_dataset(ILL, X, y, beta, n_samples, n_features + 1);
     }
 
-    fp = freopen("data/datacond.bin", "wb", fp);
-
-    if (!fp) {
-        fputs("failure to open ill-conditioned file\n", stderr);
-        status_code = EXIT_FAILURE;
-        goto done_file;
-    }
-
-    for (size_t i = 0; i < n_samples; i++)
-        for (size_t j = 0; j < n_features; j++)
-            X[i * n_features + j] = (j % 2 == 0)?
-                RAND() : X[i * n_features + j - 1] + epsilon * (2 * RAND() - 1);
-
-    for (size_t i = 0; i < n_samples; i++) {
-        double val = 0.0;
-
-        for (size_t j = 0; j < n_features; j++) 
-            val += X[i * n_features + j] * beta[j];
-
-        y[i] = val + epsilon * (2.0 * RAND() - 1.0);
-    }
-
-    if (
-        fwrite(beta, sizeof(double), n_features, fp) != n_features ||
-        fwrite(y, sizeof(double), n_samples, fp) != n_samples ||
-        fwrite(X, sizeof(double), n_features * n_samples, fp) != n_features * n_samples
-    ) {
-        fputs("error writing to datacond.bin\n", stderr);
-        status_code = EXIT_FAILURE;
-        goto done_file;
-    }
-
-    done_file:
-    fclose(fp);
-    done_beta:
-    free(beta);
-    done_y:
-    free(y);
-    done_x:
-    free(X);
-
-    end:
-    if (status_code == EXIT_SUCCESS)
-        puts("data created successfully");
-    exit(status_code);
+    puts("data created successfully");
+    prog_exit(NULL, matrices, matrices_len, NO_ERROR, EXIT_SUCCESS);
 }
