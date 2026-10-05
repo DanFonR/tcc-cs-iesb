@@ -82,7 +82,7 @@ double timedelta(struct timespec start, struct timespec end) {
  * @param n_samples Number of data samples
  * @param n_features Number of features including intercept
  */
-CSVRow residuals(
+CSVRow run_statistics(
     const RunInfo metadata,
     const Results res,
     matrix_ref X,

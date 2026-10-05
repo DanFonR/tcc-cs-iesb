@@ -135,8 +135,8 @@ int main() {
     srand(SEED);
 
     puts("well-conditioned dataset");
-    for (int n = 0; n < 11; n++) {
-        const size_t n_features = (n == 0)? 1 : 10 * n;
+    for (int n = 1; n < 11; n++) {
+        const size_t n_features = 10 * n;
 
         /* +1 for intercept */
         gen_dataset(WELL, X, y, beta, n_samples, n_features + 1);
@@ -145,8 +145,8 @@ int main() {
     }
 
     puts("\nill-conditioned dataset");
-    for (int n = 0; n < 11; n++) {
-        const size_t n_features = (n == 0)? 1 : 10 * n;
+    for (int n = 1; n < 11; n++) {
+        const size_t n_features = 10 * n;
 
         gen_dataset(ILL, X, y, beta, n_samples, n_features + 1);
         write_dataset(ILL, X, y, beta, n_samples, n_features + 1);

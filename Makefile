@@ -7,15 +7,15 @@ FLAGS_native := -O3 -march=native
 all : main
 
 define OLS_RULE
-ols_$1_$2 :
+ne_$1_$2 :
 	@ echo $$@
-	@ $2 $$(FLAGS_$1) -Iinclude -Dols_linear_regression=$$@ \
+	@ $2 $$(FLAGS_$1) -Iinclude -Dne_linear_regression=$$@ \
 	-c ./src/naive.c -o build/$$@.o \
 	$(if $(filter clang,$2),-Rpass=loop-vectorize,-fopt-info-vec)
 endef
 
 define ADD_OLS
-OLS_VARIANTS += ols_$1_$2
+OLS_VARIANTS += ne_$1_$2
 $$(eval $$(call OLS_RULE,$1,$2))
 endef
 
