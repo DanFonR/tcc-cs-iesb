@@ -145,6 +145,15 @@ Results ne_linear_regression(
         return (Results){0};
     }
 
+    double *resid = calloc(n_samples, sizeof(double));
+
+    if (resid == NULL) {
+        free(XTX);
+        free(XTY);
+
+        return (Results){0};
+    }
+
     struct timespec start, end;
     Results ret = {0};
 
@@ -163,16 +172,26 @@ Results ne_linear_regression(
     TIMEIT(predictor_solve(XTX, XTY, n_features), start, end);
 
     ret.solve_time = timedelta(start, end);
-
-    ret.numerical_results.coefs = XTY;
-    ret.numerical_results.n_coefs = n_features;
-    ret.numerical_results.n_resid = n_samples;
-
+    
     ret.total_time = (
         ret.formation_time +
         ret.decomposition_time +
         ret.solve_time
     );
+
+    for (size_t i = 0; i < n_samples; i++) {
+        double pred = 0.0;
+
+        for (size_t j = 0; j < n_features; j++) 
+            pred += X[i * n_features + j] * XTY[j];
+
+        resid[i] = Y[i] - pred;
+    }
+
+    ret.numerical_results.coefs = XTY;
+    ret.numerical_results.errors = resid;
+    ret.numerical_results.n_coefs = n_features;
+    ret.numerical_results.n_resid = n_samples;
 
     free(XTX);
 

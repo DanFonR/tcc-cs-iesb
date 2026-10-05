@@ -12,11 +12,12 @@
 #include "linearreg.h"
 #include "tests.h"
 
-#define FAIL(in, out, tau) \
+#define FAIL(in, out, tau, resid) \
 do { \
-    free(out); \
     free(in); \
+    free(out); \
     free(tau); \
+    free(resid); \
     return (Results){0}; \
 } while(0)
 
@@ -33,7 +34,8 @@ Results lapack_linear_regression(
     size_t n_samples,
     size_t n_features
 ) {
-    if (n_samples == 0 || n_features == 0 || X == NULL || Y == NULL) {
+    if (n_samples == 0 || n_features == 0 || X == NULL || Y == NULL ||
+        n_samples < n_features) {
         errno = EINVAL;
         return (Results){0};
     }
@@ -59,6 +61,16 @@ Results lapack_linear_regression(
         return (Results){0};
     }
 
+    double *resid = calloc(n_samples, sizeof(double));
+
+    if (resid == NULL) {
+        free(in);
+        free(out);
+        free(tau);
+
+        return (Results){0};
+    }
+
     memcpy(in, X, n_samples * n_features * sizeof(double));
     memcpy(out, Y, n_samples * sizeof(double));
 
@@ -80,7 +92,7 @@ Results lapack_linear_regression(
         end
     );
 
-    if (info != 0) FAIL(in, out, tau);
+    if (info != 0) FAIL(in, out, tau, resid);
 
     ret.decomposition_time = timedelta(start, end);
 
@@ -88,7 +100,7 @@ Results lapack_linear_regression(
         /* Y <- Q^T * Y */
         info = LAPACKE_dormqr(
             LAPACK_ROW_MAJOR,
-            'L', /* Apply Q from the left (Q * Y) */
+            'L', /* Apply Q^T from the left */
             'T', /* Transpose Q */
             n_samples, /* Number of rows in Y */
             1, /* Number of columns in Y */
@@ -103,8 +115,8 @@ Results lapack_linear_regression(
         end
     );
 
-    if (info != 0) FAIL(in, out, tau);
-    
+    if (info != 0) FAIL(in, out, tau, resid);
+
     ret.solve_time = timedelta(start, end);
 
     TIMEIT(
@@ -125,22 +137,45 @@ Results lapack_linear_regression(
         end
     );
 
-    if (info != 0) FAIL(in, out, tau);
-    
+    if (info != 0) FAIL(in, out, tau, resid);
+
     ret.solve_time += timedelta(start, end);
-    
+
     ret.total_time = (
         ret.formation_time +
         ret.decomposition_time +
         ret.solve_time
     );
 
-    ret.numerical_results.coefs = out;
+    for (size_t i = 0; i < n_samples; i++) {
+        double pred = 0.0;
+
+        for (size_t j = 0; j < n_features; j++) 
+            pred += X[i * n_features + j] * out[j];
+
+        resid[i] = Y[i] - pred;
+    }
+
+    double *coefs = malloc(n_features * sizeof(*coefs));
+
+    if (coefs == NULL) {
+        free(resid);
+        free(out);
+        free(tau);
+        free(in);
+        return (Results){0};
+    }
+
+    memcpy(coefs, out, n_features * sizeof(*coefs));
+
+    ret.numerical_results.coefs = coefs;
+    ret.numerical_results.errors = resid;
     ret.numerical_results.n_coefs = n_features;
     ret.numerical_results.n_resid = n_samples;
 
-    free(tau);
     free(in);
+    free(tau);
+    free(out);
 
     return ret;
 }

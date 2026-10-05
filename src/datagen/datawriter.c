@@ -75,11 +75,11 @@ void gen_dataset(
 
 void write_dataset(
     cond_type cond,
-    const double *X, const double *y, const double *beta,
+    double *X, double *y, double *beta,
     size_t n_samples, size_t n_features
 ) {
     char filename[32];
-    double *matrices[] = {X, y, beta};
+    double **matrices[] = {&X, &y, &beta};
     size_t matrices_len = sizeof(matrices) / sizeof(*matrices);
     err_codes code;
 
@@ -102,8 +102,8 @@ void write_dataset(
     if (!fp) prog_exit(fp, matrices, matrices_len, code, EXIT_FAILURE);
 
     if (
-        fwrite(n_samples, sizeof(size_t), 1, fp) != 1 ||
-        fwrite(n_features, sizeof(size_t), 1, fp) != 1 ||
+        fwrite(&n_samples, sizeof(size_t), 1, fp) != 1 ||
+        fwrite(&n_features, sizeof(size_t), 1, fp) != 1 ||
         fwrite(beta, sizeof(double), n_features, fp) != n_features ||
         fwrite(y, sizeof(double), n_samples, fp) != n_samples ||
         fwrite(X, sizeof(double), n_features * n_samples, fp)
@@ -112,7 +112,7 @@ void write_dataset(
         prog_exit(fp, matrices, matrices_len, code, EXIT_FAILURE);
 }
 
-/* layout: beta, y, x */
+/* layout: n_samples, n_features, beta, y, x */
 
 int main() {
     const size_t n_samples = 1000000, init_n_features = 100 + 1;
@@ -134,21 +134,25 @@ int main() {
 
     srand(SEED);
 
+    puts("well-conditioned dataset");
     for (int n = 0; n < 11; n++) {
         const size_t n_features = (n == 0)? 1 : 10 * n;
 
         /* +1 for intercept */
         gen_dataset(WELL, X, y, beta, n_samples, n_features + 1);
         write_dataset(WELL, X, y, beta, n_samples, n_features + 1);
+        printf("%d features + 1 intercept\n", n_features);
     }
 
+    puts("\nill-conditioned dataset");
     for (int n = 0; n < 11; n++) {
         const size_t n_features = (n == 0)? 1 : 10 * n;
 
         gen_dataset(ILL, X, y, beta, n_samples, n_features + 1);
         write_dataset(ILL, X, y, beta, n_samples, n_features + 1);
+        printf("%d features + 1 intercept\n", n_features);
     }
 
-    puts("data created successfully");
+    puts("\ndata created successfully");
     prog_exit(NULL, matrices, matrices_len, NO_ERROR, EXIT_SUCCESS);
 }
