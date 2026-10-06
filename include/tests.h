@@ -16,8 +16,10 @@
 #define TIMEIT(func_call, start, end) \
 do { \
     clock_gettime(CLOCK_MONOTONIC_RAW, &start); \
+    __asm__ volatile("" ::: "memory"); \
     func_call; \
     clock_gettime(CLOCK_MONOTONIC_RAW, &end); \
+    __asm__ volatile("" ::: "memory"); \
 } while (0)
 
 typedef struct {
@@ -28,10 +30,10 @@ typedef struct {
 } TimeResults;
 
 typedef struct {
-    char lr_method[3]; /** QR or NE (normal equations) */
-    char data_type[5]; /** WELL or ILL dataset */
-    char compiler[6]; /** Compiler used (GCC or Clang) */
-    char optim[3]; /** Optimization level (O0, O1, O3 with -march=native) */
+    const char *lr_method; /** QR or NE (normal equations) */
+    const char *data_type; /** WELL or ILL dataset */
+    const char *compiler; /** Compiler used (GCC or Clang) */
+    const char *optim; /** Optimization level (O0, O1, O3 with -march=native) */
     size_t n_samples; /** Number of samples used */
     size_t n_features; /** Number of features used, including intercept */
     size_t run; /** The run which resulted in these stats */

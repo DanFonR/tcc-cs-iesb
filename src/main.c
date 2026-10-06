@@ -7,74 +7,80 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 #include <openblas/cblas.h>
+#include <openblas/lapacke.h>
 #include "tests.h"
 
 typedef Results (*regressor)(matrix_ref, matrix_ref, size_t, size_t);
 
 static volatile double warmup_sink;
 
-static inline void warmup_consume(const Results *r)
-{
+static inline void warmup_consume(const Results *r) {
+    if (r == NULL || r->numerical_results.coefs == NULL) return;
+
     warmup_sink += r->numerical_results.coefs[0];
 }
 
+static int load_dataset(
+    const char *path, size_t n_features,
+    double **X, double **y, double **betas
+) {
+    const size_t n_samples = 1000000;
+
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) { perror(path); return -1; }
+
+    size_t ns = 0, nf = 0;
+    *X = NULL; *y = NULL; *betas = NULL;
+
+    if (fread(&ns, sizeof ns, 1, fp) != 1 ||
+        fread(&nf, sizeof nf, 1, fp) != 1 ||
+        ns != n_samples || nf != n_features
+    ) {
+        fprintf(stderr, "%s: Invalid header\n", path);
+        goto fail;
+    }
+
+    *X = malloc(n_samples * n_features * sizeof(double));
+    *y = malloc(n_samples * sizeof(double));
+    *betas = malloc(n_features * sizeof(double));
+
+    if (!*X || !*y || !*betas) {
+        fprintf(stderr, "%s: Out of memory\n", path);
+        goto fail;
+    }
+
+    if (fread(*betas, sizeof(double), n_features, fp) != n_features ||
+        fread(*y, sizeof(double), n_samples, fp) != n_samples ||
+        fread(*X, sizeof(double), n_samples * n_features, fp)
+            != n_samples * n_features
+    ) {
+        fprintf(stderr, "%s: Incomplete read\n", path);
+        goto fail;
+    }
+
+    fclose(fp);
+    return 0;
+
+    fail:
+    free(*X);
+    free(*y);
+    free(*betas);
+
+    *X = *y = *betas = NULL;
+
+    fclose(fp);
+
+    return -1;
+}
+
 void benchmark(
+    matrix_ref X, matrix_ref y, matrix_ref betas,
     const char *type, size_t n_samples, size_t n_features,
     FILE *csv
 ) {
     const size_t warmups = 3, runs = 20;
-
-    char filename[64];
-    sprintf(filename, "data/%scond/data%s%zu.bin", type, type, n_features);
-
-    FILE *dataset = fopen(filename, "rb");
-    if (dataset == NULL) return;
-
-    size_t read_n_features = 0, read_n_samples = 0;
-
-    if (fread(&read_n_samples, sizeof(size_t), 1, dataset) != 1 ||
-        fread(&read_n_features, sizeof(size_t), 1, dataset) != 1
-    ) {
-        fclose(dataset);
-
-        return;
-    }
-
-    if (read_n_features != n_features || read_n_samples != 1000000) {
-        fclose(dataset);
-
-        return;
-    }
-
-    double *X = malloc(1000000ULL * n_features * sizeof(double));
-    double *y = malloc(1000000ULL * sizeof(double));
-    double *betas = malloc(n_features * sizeof(double));
-
-    if (X == NULL || y == NULL || betas == NULL) {
-        free(X);
-        free(y);
-        free(betas);
-
-        fclose(dataset);
-
-        return;
-    }
-
-    if (
-        fread(betas, sizeof(double), n_features, dataset) != n_features ||
-        fread(y, sizeof(double), 1000000, dataset) != 1000000 ||
-        fread(X, sizeof(double), 1000000 * n_features, dataset)
-            != 1000000 * n_features
-    ) {
-        free(X);
-        free(y);
-        free(betas);
-
-        fclose(dataset);
-
-        return;
-    }
 
     regressor funcs[] = {
         ne_o0_clang, ne_o0_gcc,
@@ -104,13 +110,21 @@ void benchmark(
 
         for (size_t i = 0; i < runs; i++) {
             Results act = (funcs[f])(X, y, n_samples, n_features);
+
+            if (act.numerical_results.coefs == NULL) {
+                fprintf(stderr, "error on run %zu\n", i);
+                free(act.numerical_results.errors);
+
+                continue;
+            }
+
             RunInfo metadata = {
                 .compiler = compilers[f % 2],
                 .data_type = type,
                 .lr_method = (f == funcs_len - 1)? "QR" : "NE",
                 .n_features = n_features,
                 .n_samples = n_samples,
-                .optim = (f == funcs_len - 1)? "native" : options[f / 2],
+                .optim = (f == funcs_len - 1)? "O0" : options[f / 2],
                 .run = i
             };
 
@@ -124,18 +138,18 @@ void benchmark(
             fprintf(csv,
                 "%zu,%s,%s,%s,"
                 "%s,%zu,%zu,"
-                "%.15f,%.15f,"
-                "%.15f,%.15f,"
-                "%.15f,%.15f,"
-                "%.15f,"
-                "%.15f,"
-                "%.15f,"
-                "%.15f,%.15f,"
-                "%.15f,"
-                "%.15f,"
-                "%.15f,"
-                "%.15f,"
-                "%.15f,%.15f\n",
+                "%.17g,%.9f,"
+                "%.9f,%.9f,"
+                "%.9f,%.17g,"
+                "%.17g,"
+                "%.17g,"
+                "%.17g,"
+                "%.17g,%.17g,"
+                "%.17g,"
+                "%.17g,"
+                "%.17g,"
+                "%.17g,"
+                "%.17g,%.17g\n",
                 i, metadata.lr_method, metadata.compiler, metadata.optim,
                 metadata.data_type, n_samples, n_features,
                 metrics.condition_number_2, metrics.times.formation_time,
@@ -158,6 +172,7 @@ void benchmark(
 
 int main() {
     openblas_set_num_threads(1);
+    LAPACKE_set_nancheck(0);
 
     FILE *csv = fopen("data/results/results.csv", "w");
 
@@ -177,10 +192,31 @@ int main() {
     for (int kind = 0; kind < 2; kind++) {
         const char *type = (kind == 0)? "well" : "ill";
 
-        for (size_t features = 11; features <= 101; features += 10) 
-            for (size_t samples = 1000; samples <= 1000000; samples *= 10) 
-                benchmark(type, samples, features, csv);
+        for (size_t features = 11; features <= 101; features += 10) {
+            char filename[64];
+            snprintf(
+                filename, sizeof(filename), "data/%scond/data%s%zu.bin",
+                type, type, features
+            );
+
+            double *X, *y, *betas;
+            if (load_dataset(filename, features, &X, &y, &betas) != 0) {
+                fclose(csv);
+                return 1;
+            }
+
+            for (size_t samples = 1000; samples <= 1000000; samples *= 10) {
+                benchmark(X, y, betas, type, samples, features, csv);
+                fflush(csv);
+            }
+
+            free(X);
+            free(y);
+            free(betas);
+        }
     }
+
+    fclose(csv);
 
     return 0;
 }

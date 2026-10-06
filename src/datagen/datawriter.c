@@ -110,6 +110,8 @@ void write_dataset(
             != n_features * n_samples
     )
         prog_exit(fp, matrices, matrices_len, code, EXIT_FAILURE);
+
+    fclose(fp);
 }
 
 /* layout: n_samples, n_features, beta, y, x */
@@ -141,7 +143,7 @@ int main() {
         /* +1 for intercept */
         gen_dataset(WELL, X, y, beta, n_samples, n_features + 1);
         write_dataset(WELL, X, y, beta, n_samples, n_features + 1);
-        printf("%d features + 1 intercept\n", n_features);
+        printf("%zu features + 1 intercept\n", n_features);
     }
 
     puts("\nill-conditioned dataset");
@@ -150,7 +152,7 @@ int main() {
 
         gen_dataset(ILL, X, y, beta, n_samples, n_features + 1);
         write_dataset(ILL, X, y, beta, n_samples, n_features + 1);
-        printf("%d features + 1 intercept\n", n_features);
+        printf("%zu features + 1 intercept\n", n_features);
     }
 
     puts("\ndata created successfully");

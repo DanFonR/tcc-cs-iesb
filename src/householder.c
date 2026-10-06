@@ -22,7 +22,8 @@ do { \
 } while(0)
 
 /**
- * @brief Performs Linear Regression using Householder QR decompositions
+ * @brief Performs Linear Regression using Householder QR decomposition
+ * and other OpenBLAS LAPACK operations
  * 
  * @param X Design Matrix (RMO)
  * @param Y Results Matrix (RMO)
@@ -41,42 +42,19 @@ Results lapack_linear_regression(
     }
 
     double *in = malloc(n_features * n_samples * sizeof(double));
-
-    if (in == NULL) return (Results){0};
-
-    double *tau = malloc(n_features * sizeof(double));
-
-    if (tau == NULL) {
-        free(in);
-
-        return (Results){0};
-    }
-
     double *out = malloc(n_samples * sizeof(double));
-
-    if (out == NULL) {
-        free(tau);
-        free(in);
-
-        return (Results){0};
-    }
-
+    double *tau = malloc(n_features * sizeof(double));
     double *resid = calloc(n_samples, sizeof(double));
 
-    if (resid == NULL) {
-        free(in);
-        free(out);
-        free(tau);
-
-        return (Results){0};
-    }
+    if (in == NULL || out == NULL || tau == NULL || resid == NULL)
+        FAIL(in, out, tau, resid);
 
     memcpy(in, X, n_samples * n_features * sizeof(double));
     memcpy(out, Y, n_samples * sizeof(double));
 
     struct timespec start, end;
     lapack_int info;
-    Results ret = {0};
+    Results ret = {0}; /* Formation time = 0, XTX and XTY are not formed */
 
     TIMEIT(
         /* X = Q * R */
@@ -158,13 +136,7 @@ Results lapack_linear_regression(
 
     double *coefs = malloc(n_features * sizeof(*coefs));
 
-    if (coefs == NULL) {
-        free(resid);
-        free(out);
-        free(tau);
-        free(in);
-        return (Results){0};
-    }
+    if (coefs == NULL) FAIL(in, out, tau, resid);
 
     memcpy(coefs, out, n_features * sizeof(*coefs));
 

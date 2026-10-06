@@ -1,7 +1,32 @@
 #!/usr/bin/env bash
 
-if [[ ! -f "./data/datarand.bin" || ! -f "./data/datacond.bin" ]]; then
-    ./bin/datagen
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
+N_SAMPLES=1000000
+
+# Checks if all files exist
+data_ok() {
+    local kind f path expected
+    for kind in well ill; do
+        for f in $(seq 11 10 101); do
+            path="data/${kind}cond/data${kind}${f}.bin"
+            expected=$(( 16 + 8 * (f + N_SAMPLES + N_SAMPLES * f) ))
+
+            [[ -f "$path" && "$(stat -c %s "$path")" -eq "$expected" ]] \
+                || return 1
+        done
+    done
+}
+
+make
+
+if ! data_ok; then
+    make datagen
+    data_ok || { echo "Invalid data after datagen" >&2; exit 1; }
 fi
+
+mkdir -p data/results
 
 # ./bin/main

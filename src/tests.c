@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include <openblas/lapacke.h>
 
 static double condition_number_2(
@@ -99,7 +100,7 @@ CSVRow run_statistics(
     ) {
         errno = EINVAL;
 
-        return;
+        return (CSVRow){0};
     }
 
     CSVRow ret = {0};
@@ -163,6 +164,15 @@ CSVRow run_statistics(
     ret.coef_stats.coef_rmse = (
         ret.coef_stats.coef_err_l2 / sqrt(n_features)
     );
+
+    if (isnan(ret.coef_stats.coef_err_l2)) {
+        ret.coef_stats.max_abs_coef_err = NAN;
+        ret.coef_stats.min_abs_coef_err = NAN;
+    }
+    if (isnan(ret.resid_stats.resid_err_l2)) {
+        ret.resid_stats.max_abs_resid_err = NAN;
+        ret.resid_stats.min_abs_resid_err = NAN;
+    }
 
     return ret;
 }
