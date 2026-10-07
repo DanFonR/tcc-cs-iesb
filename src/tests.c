@@ -34,14 +34,15 @@ static double condition_number_2(
 
     /* Single Value Decomposition, to determine condition number */
     /* A = UΣV^T, only need Σ, with max = s[0] and min = s[n_features - 1] */
+    /* COL_MAJOR gives same SVD, prevents transposed copy */
     lapack_int info = LAPACKE_dgesdd(
-        LAPACK_ROW_MAJOR,
+        LAPACK_COL_MAJOR,
         'N', /* Don't calculate U or VT */
-        (lapack_int)n_samples,
-        (lapack_int)n_features,
+        (lapack_int)n_features,     /* linhas da matriz col-major */
+        (lapack_int)n_samples,      /* colunas da matriz col-major */
         a, /* input (X) */
-        (lapack_int)n_features,
-        s, /* output SVD */
+        (lapack_int)n_features,     /* lda = numero de linhas col-major */
+        s, /* output SVD (s[0] = max, s[n_features - 1] = min) */
         NULL, /* Output left singular vectors */
         1, /* Leading dimension of U (not computed) */
         NULL, /* Output right singular vectors */
