@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include <openblas/lapacke.h>
+#include <lapacke.h>
 
 static double condition_number_2(
     const double *X,

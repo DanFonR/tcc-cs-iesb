@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#include <openblas/cblas.h>
-#include <openblas/lapacke.h>
+#include <cblas.h>
+#include <lapacke.h>
 #include "tests.h"
 
 typedef Results (*regressor)(matrix_ref, matrix_ref, size_t, size_t);

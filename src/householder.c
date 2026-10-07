@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include <openblas/lapacke.h>
+#include <lapacke.h>
 #include "linearreg.h"
 #include "tests.h"
 
