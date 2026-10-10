@@ -12,6 +12,17 @@
 #include <string.h>
 #include <lapacke.h>
 
+/**
+ * @brief Computes the 2-norm condition number of X via SVD
+ *
+ * Expensive (O(n * p^2) plus a copy of X): call it through
+ * condition_number_cached(), which reuses the value across runs.
+ *
+ * @param X Design matrix (RMO)
+ * @param n_samples Number of data samples
+ * @param n_features Number of features including intercept
+ * @return sigma_max / sigma_min, or NAN on failure or rank deficiency
+ */
 static double condition_number_2(
     const double *X,
     size_t n_samples,
@@ -60,6 +71,62 @@ static double condition_number_2(
     return condition;
 }
 
+/** Single-entry cache: kappa depends only on the data, not on the method */
+static struct {
+    const double *X;
+    size_t n_samples, n_features;
+    double fingerprint, kappa;
+    int valid;
+} kappa_cache;
+
+/**
+ * @brief Cheap content hash of X (up to 4096 evenly spaced entries)
+ *
+ * Guards the cache against a new dataset that happens to be allocated at
+ * the same address with the same dimensions.
+ */
+static double fingerprint(const double *X, size_t count) {
+    const size_t samples = (count < 4096)? count : 4096;
+    const size_t stride = count / samples;
+    double acc = 0.0;
+
+    for (size_t s = 0; s < samples; s++)
+        acc += X[s * stride] * (double)(s + 1);
+
+    return acc;
+}
+
+/**
+ * @brief Condition number of X, computed once per (dataset, size)
+ *
+ * The SVD runs only when (X, n_samples, n_features, content) changes, e.g.
+ * once per configuration instead of once per run and per method. Not
+ * thread-safe.
+ */
+static double condition_number_cached(
+    const double *X,
+    size_t n_samples,
+    size_t n_features
+) {
+    const double fp = fingerprint(X, n_samples * n_features);
+
+    if (kappa_cache.valid &&
+        kappa_cache.X == X &&
+        kappa_cache.n_samples == n_samples &&
+        kappa_cache.n_features == n_features &&
+        kappa_cache.fingerprint == fp)
+        return kappa_cache.kappa;
+
+    kappa_cache.kappa = condition_number_2(X, n_samples, n_features);
+    kappa_cache.X = X;
+    kappa_cache.n_samples = n_samples;
+    kappa_cache.n_features = n_features;
+    kappa_cache.fingerprint = fp;
+    kappa_cache.valid = 1;
+
+    return kappa_cache.kappa;
+}
+
 /**
  * @brief Returns timedelta between 2 timespecs
  * 
@@ -77,12 +144,15 @@ double timedelta(struct timespec start, struct timespec end) {
 /**
  * @brief Outputs data ready to be written as a CSV row
  * 
+ * @param metadata Identification of the run (method, compiler, sizes...)
  * @param res Results from regression
  * @param X Design matrix (RMO)
  * @param Y Results matrix (RMO)
- * @param true_coefs The vector of true coefficients
+ * @param true_coefs Coefficients the estimates are compared against (true
+ *        betas, or the high-precision reference solution)
  * @param n_samples Number of data samples
  * @param n_features Number of features including intercept
+ * @return Statistics of the run (zeroed on invalid input, errno = EINVAL)
  */
 CSVRow run_statistics(
     const RunInfo metadata,
@@ -116,7 +186,7 @@ CSVRow run_statistics(
     ret.times.solve_time = res.solve_time;
     ret.times.total_time = res.total_time;
 
-    ret.condition_number_2 = condition_number_2(X, n_samples, n_features);
+    ret.condition_number_2 = condition_number_cached(X, n_samples, n_features);
 
     for (size_t i = 0; i < res.numerical_results.n_resid; i++) {
         double resid = fabs(res.numerical_results.errors[i]);

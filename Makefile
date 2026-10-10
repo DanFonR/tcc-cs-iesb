@@ -27,14 +27,14 @@ build/ne_$1_$2.o : src/naive.c $(HEADERS) Makefile | build
 	@ echo $$@
 	@ $2 $(WARN) $$(FLAGS_$1) -Iinclude -Dne_linear_regression=ne_$1_$2 \
 	  -c $$< -o $$@ \
-	  $(if $(filter clang,$2),-Rpass=loop-vectorize,-fopt-info-vec)
+	  $(if $(filter clang,$2),-Rpass=loop-vectorize -Rpass-missed=loop-vectorize,-fopt-info-vec -fopt-info-vec-missed)
 endef
 
 $(foreach flag,o0 o1 native,\
   $(foreach comp,clang gcc,\
     $(eval $(call NE_RULE,$(flag),$(comp)))))
 
-all : bin/main
+all : bin/main bin/stability
 
 build/hqr_base_gcc.o : src/householder.c $(HEADERS) Makefile | build
 	@ echo $@
@@ -45,18 +45,26 @@ bin/main : src/main.c src/tests.c $(NE_OBJS) $(HQR_OBJS) $(HEADERS) Makefile | b
 	@ clang $(WARN) -O2 $(BLAS_CFLAGS) -Iinclude src/main.c src/tests.c \
 	  $(NE_OBJS) $(HQR_OBJS) -o $@ $(LIBS)
 
+bin/stability : src/stability.c src/refsolve.c src/tests.c $(NE_OBJS) $(HQR_OBJS) $(HEADERS) Makefile | bin
+	@ clang $(WARN) -O2 $(BLAS_CFLAGS) -Iinclude src/stability.c src/refsolve.c \
+	  src/tests.c $(NE_OBJS) $(HQR_OBJS) -o $@ $(LIBS)
+
 bin/datagen : src/datagen/datawriter.c Makefile | bin
 	@ gcc $(WARN) -O2 $< -o $@
 
 datagen : bin/datagen
-	@ mkdir -p data/wellcond data/illcond data/results
+	@ mkdir -p data/wellcond data/illcond data/stability data/results
 	@ ./bin/datagen
+
+# Roda o experimento de estabilidade numerica (gera data/results/stability.csv)
+stability : bin/stability
+	@ ./bin/stability
 
 build bin :
 	@ mkdir -p $@
 
 clean :
-	@ rm -rf build bin/main
+	@ rm -rf build bin/main bin/stability
 
 # Versao dos compiladores e CPU alvo reconhecida pelo -march=native
 env_check :

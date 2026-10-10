@@ -29,4 +29,7 @@ fi
 
 mkdir -p data/results
 
-# ./bin/main
+export MALLOC_MMAP_MAX_=0
+export MALLOC_TRIM_THRESHOLD_=4294967296
+/usr/bin/time -v -o data/results/$(date +"%Y%m%d-%H%M%S")-time.log ./bin/main
+

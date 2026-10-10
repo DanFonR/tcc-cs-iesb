@@ -88,6 +88,12 @@ void benchmark(
         ne_native_clang, ne_native_gcc,
         NULL, hqr_base_gcc
     };
+    /*regressor funcs[] = {
+        NULL, NULL,
+        NULL, NULL,
+        NULL, NULL,
+        NULL, hqr_base_gcc
+    };*/
     size_t funcs_len = sizeof(funcs)/sizeof(*funcs);
 
     const char *compilers[] = {
@@ -174,7 +180,17 @@ int main() {
     openblas_set_num_threads(1);
     LAPACKE_set_nancheck(0);
 
-    FILE *csv = fopen("data/results/results.csv", "w");
+    time_t now = time(NULL);
+    struct tm local_now = *localtime(&now);
+    char filename[64];
+
+    strftime(
+        filename, sizeof(filename),
+	"data/results/%Y%m%d-%H%M%S-results.csv",
+	&local_now
+    );
+
+    FILE *csv = fopen(filename, "w");
 
     if (csv == NULL) return 1;
 
@@ -191,6 +207,7 @@ int main() {
 
     for (int kind = 0; kind < 2; kind++) {
         const char *type = (kind == 0)? "well" : "ill";
+        //const char *type = (kind == 0)? "ill" : "well";
 
         for (size_t features = 11; features <= 101; features += 10) {
             char filename[64];
