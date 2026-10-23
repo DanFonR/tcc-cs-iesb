@@ -8,3 +8,4 @@ data/**/*.bin
 .vscode/
 
 !.gitkeep
+thesis/guidenotes/
