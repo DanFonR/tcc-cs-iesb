@@ -1,0 +1,109 @@
+build/ne_o0_clang.o
+build/ne_o0_gcc.o
+build/ne_o1_clang.o
+src/naive.c:32:13: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+   32 |             for (size_t k = 0; k < n_samples; k++)
+      |             ^
+src/naive.c:58:9: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+   58 |         for (size_t j = 0; j < n_samples; j++)
+      |         ^
+src/naive.c:78:13: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+   78 |             for (size_t k = 0; k < j; k++)
+      |             ^
+src/naive.c:108:9: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+  108 |         for (size_t k = 0; k < i; k++)
+      |         ^
+src/naive.c:118:9: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+  118 |         for (size_t k = i + 1; k < n_features; k++)
+      |         ^
+src/naive.c:185:9: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+  185 |         for (size_t j = 0; j < n_features; j++)
+      |         ^
+build/ne_o1_gcc.o
+build/ne_native_clang.o
+src/naive.c:32:13: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+   32 |             for (size_t k = 0; k < n_samples; k++)
+      |             ^
+src/naive.c:58:9: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+   58 |         for (size_t j = 0; j < n_samples; j++)
+      |         ^
+src/naive.c:78:13: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+   78 |             for (size_t k = 0; k < j; k++)
+      |             ^
+src/naive.c:108:9: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+  108 |         for (size_t k = 0; k < i; k++)
+      |         ^
+src/naive.c:118:9: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+  118 |         for (size_t k = i + 1; k < n_features; k++)
+      |         ^
+src/naive.c:185:9: remark: loop not vectorized [-Rpass-missed=loop-vectorize]
+  185 |         for (size_t j = 0; j < n_features; j++)
+      |         ^
+build/ne_native_gcc.o
+src/naive.c:182:26: missed: couldn't vectorize loop
+src/naive.c:186:22: missed: not vectorized: complicated access pattern.
+src/naive.c:185:30: optimized: loop vectorized using 64 byte vectors
+src/naive.c:185:30: optimized: loop vectorized using 32 byte vectors
+src/naive.c:115:37: missed: couldn't vectorize loop
+src/naive.c:116:16: missed: not vectorized: no vectype for stmt: sum_288 = *_197;
+ scalar_type: double
+src/naive.c:115:37: missed: couldn't vectorize loop
+src/naive.c:115:37: missed: not vectorized: unsupported control flow in loop.
+src/naive.c:118:34: missed: couldn't vectorize loop
+src/naive.c:119:23: missed: not vectorized: no vectype for stmt: _170 = *_169;
+ scalar_type: const double
+src/naive.c:105:26: missed: couldn't vectorize loop
+src/naive.c:105:26: missed: not vectorized: inner-loop count not invariant.
+src/naive.c:108:30: optimized: loop vectorized using 64 byte vectors
+src/naive.c:108:30: optimized: loop vectorized using 32 byte vectors
+src/naive.c:74:26: missed: couldn't vectorize loop
+src/naive.c:74:26: missed: not vectorized: unsupported control flow in loop.
+src/naive.c:75:30: missed: couldn't vectorize loop
+src/naive.c:75:30: missed: not vectorized: unsupported control flow in loop.
+src/naive.c:78:34: optimized: loop vectorized using 64 byte vectors
+src/naive.c:78:34: optimized: loop vectorized using 32 byte vectors
+src/naive.c:55:26: missed: couldn't vectorize loop
+src/naive.c:59:21: missed: not vectorized: not suitable for strided load _90 = *_89;
+src/naive.c:58:30: missed: couldn't vectorize loop
+src/naive.c:59:21: missed: not vectorized: no vectype for stmt: _90 = *_89;
+ scalar_type: const double
+src/naive.c:28:26: missed: couldn't vectorize loop
+src/naive.c:28:26: missed: not vectorized: multiple nested loops.
+src/naive.c:29:30: missed: couldn't vectorize loop
+src/naive.c:33:27: missed: not vectorized: not suitable for strided load _117 = *_116;
+src/naive.c:32:34: missed: couldn't vectorize loop
+src/naive.c:33:27: missed: not vectorized: no vectype for stmt: _117 = *_116;
+ scalar_type: const double
+src/naive.c:135:19: missed: statement clobbers memory: XTX_40 = calloc (powmult_289, 8);
+src/naive.c:140:19: missed: statement clobbers memory: XTY_42 = calloc (n_features_35(D), 8);
+src/naive.c:148:21: missed: statement clobbers memory: resid_44 = calloc (n_samples_34(D), 8);
+src/naive.c:160:5: missed: statement clobbers memory: clock_gettime (4, &start);
+src/naive.c:160:5: missed: statement clobbers memory: __asm__ __volatile__("" :  :  : "memory");
+src/naive.c:160:5: missed: statement clobbers memory: clock_gettime (4, &end);
+src/naive.c:160:5: missed: statement clobbers memory: __asm__ __volatile__("" :  :  : "memory");
+src/naive.c:162:26: missed: statement clobbers memory: _9 = timedelta (start, end);
+src/naive.c:164:5: missed: statement clobbers memory: clock_gettime (4, &start);
+src/naive.c:164:5: missed: statement clobbers memory: __asm__ __volatile__("" :  :  : "memory");
+src/naive.c:164:5: missed: statement clobbers memory: clock_gettime (4, &end);
+src/naive.c:164:5: missed: statement clobbers memory: __asm__ __volatile__("" :  :  : "memory");
+src/naive.c:166:27: missed: statement clobbers memory: _56 = timedelta (start, end);
+src/naive.c:168:5: missed: statement clobbers memory: clock_gettime (4, &start);
+src/naive.c:168:5: missed: statement clobbers memory: __asm__ __volatile__("" :  :  : "memory");
+src/naive.c:82:41: missed: statement clobbers memory: _47 = sqrt (sum_191);
+src/naive.c:82:41: missed: statement clobbers memory: _473 = sqrt (sum_449);
+src/naive.c:168:5: missed: statement clobbers memory: clock_gettime (4, &end);
+src/naive.c:168:5: missed: statement clobbers memory: __asm__ __volatile__("" :  :  : "memory");
+src/naive.c:170:30: missed: statement clobbers memory: _11 = timedelta (start, end);
+src/naive.c:172:5: missed: statement clobbers memory: clock_gettime (4, &start);
+src/naive.c:172:5: missed: statement clobbers memory: __asm__ __volatile__("" :  :  : "memory");
+src/naive.c:172:5: missed: statement clobbers memory: clock_gettime (4, &end);
+src/naive.c:172:5: missed: statement clobbers memory: __asm__ __volatile__("" :  :  : "memory");
+src/naive.c:174:22: missed: statement clobbers memory: _12 = timedelta (start, end);
+src/naive.c:196:5: missed: statement clobbers memory: free (XTX_40);
+src/naive.c:151:9: missed: statement clobbers memory: free (XTX_40);
+src/naive.c:152:9: missed: statement clobbers memory: free (XTY_42);
+src/naive.c:143:9: missed: statement clobbers memory: free (XTX_40);
+src/naive.c:198:12: optimized: basic block part vectorized using 16 byte vectors
+src/naive.c:198:12: optimized: basic block part vectorized using 16 byte vectors
+src/naive.c:198:12: optimized: basic block part vectorized using 32 byte vectors
+build/hqr_base_gcc.o

@@ -7,5 +7,7 @@ data/**/*.bin
 # data/**/*.csv
 .vscode/
 
-!.gitkeep
+.gitkeep
 thesis/guidenotes/
+analysis/figs/*
+!analysis/figs/.gitkeep
