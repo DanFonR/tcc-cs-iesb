@@ -438,7 +438,7 @@ def plot_lines(
 
 def add_shared_legend(
     fig: Figure, ax: Axes,
-    order: Sequence[str], y_anchor: float
+    order: Sequence[str], y_anchor: float, ncol: int = 4
 ) -> None:
     """Legenda única na base da figura, na ordem desejada."""
     handles, labels = ax.get_legend_handles_labels()
@@ -447,7 +447,7 @@ def add_shared_legend(
 
     fig.legend(
         [lookup[n] for n in names], names,
-        loc="lower center", ncol=4, frameon=False,
+        loc="lower center", ncol=ncol, frameon=False,
         bbox_to_anchor=(0.5, y_anchor),
     )
 
@@ -473,12 +473,24 @@ def fig_time_vs_n(agg: pd.DataFrame, dtype: str, outdir: Path) -> None:
 def fig_time_vs_p(
     agg: pd.DataFrame, dtype: str, outdir: Path,
     ycol: str = "median", name: str = "fig2_tempo_vs_p",
-    ylabel: str = "Tempo mediano (s)",
+    ylabel: str = "Tempo mediano (s)", stacked: bool = False,
 ) -> None:
-    """Tempo (ou tempo normalizado por n*p^2) x p, um painel por n."""
+    """Tempo (ou tempo normalizado por n*p^2) x p, um painel por n.
+
+    stacked=False: grade 2 x 2 (layout original, usado na fig2).
+    stacked=True: 4 linhas x 1 coluna, para caber em uma coluna (fig2b).
+    """
     data = agg[agg["data_type"] == dtype]
     ns = sorted(data["n_samples"].unique())
-    fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
+
+    # Original (sempre 2 x 2):
+    # fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
+    if stacked:
+        fig, axes = plt.subplots(
+            4, 1, figsize=(5.2, 9.0), sharex=True, squeeze=False
+        )
+    else:
+        fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
 
     for ax, n in zip(axes.ravel(), ns):
         plot_lines(ax, data[data["n_samples"] == n], "n_features", ycol=ycol)
@@ -490,11 +502,23 @@ def fig_time_vs_p(
     for ax in axes[-1]:
         ax.set_xlabel("Variáveis (p)")
 
-    for ax in axes[:, 0]:
-        ax.set_ylabel(ylabel)
+    # Original (rótulo em cada painel da primeira coluna):
+    # for ax in axes[:, 0]:
+    #     ax.set_ylabel(ylabel)
+    if stacked:
+        fig.supylabel(ylabel)  # rótulo único, evita sobreposição
+    else:
+        for ax in axes[:, 0]:
+            ax.set_ylabel(ylabel)
 
-    fig.tight_layout(rect=(0, 0.05, 1, 1))
-    add_shared_legend(fig, axes[0, 0], variant_order(data), y_anchor=0.0)
+    # Original:
+    # fig.tight_layout(rect=(0, 0.05, 1, 1))
+    # add_shared_legend(fig, axes[0, 0], variant_order(data), y_anchor=0.0)
+    fig.tight_layout(rect=(0, 0.10 if stacked else 0.05, 1, 1))
+    add_shared_legend(
+        fig, axes[0, 0], variant_order(data), y_anchor=0.0,
+        ncol=2 if stacked else 4
+    )
     save_figure(fig, outdir, name)
 
 
@@ -505,32 +529,63 @@ def fig_speedup_bars(
     speedups: pd.DataFrame, dtype: str,
     outdir: Path
 ) -> None:
-    """Barras de speedup por n e compilador (mediana sobre p, barra = IQR)."""
+    """Barras de speedup por n e compilador (mediana sobre p, barra = IQR).
+
+    Dois painéis empilhados (O0 -> O1 em cima, O1 -> O3+native embaixo).
+    """
     data = speedups[speedups["data_type"] == dtype].copy()
     data["n"] = data["n_samples"].map(fmt_n)
     data["Compilador"] = data["comp"].map(COMPILER_LABEL)
-    grid = sns.catplot(
-        data=data, x="n", y="speedup", hue="Compilador",
-        col="transition", kind="bar",
-        estimator=np.median, errorbar=("pi", 50),
-        palette={"GCC": COLORS["gcc"], "Clang": COLORS["clang"]},
-        height=3.8, aspect=1.1, capsize=0.08,
-    )
 
-    for ax in grid.axes.ravel():
+    # Original (painéis lado a lado):
+    # grid = sns.catplot(
+    #     data=data, x="n", y="speedup", hue="Compilador",
+    #     col="transition", kind="bar",
+    #     estimator=np.median, errorbar=("pi", 50),
+    #     palette={"GCC": COLORS["gcc"], "Clang": COLORS["clang"]},
+    #     height=3.8, aspect=1.1, capsize=0.08,
+    # )
+    #
+    # for ax in grid.axes.ravel():
+    #     ax.axhline(1.0, color="k", lw=0.8, ls="--")
+    #     ax.set_xlabel("Amostras (n)")
+    #
+    # grid.axes[0, 0].set_ylabel(
+    #     "Speedup (mediana sobre p; barra = IQR entre p)"
+    # )
+    # grid.set_titles("{col_name}")
+    # save_figure(grid.figure, outdir, "fig3_speedup")
+
+    transitions = ["O0 → O1", "O1 → O3+native"]
+    fig, axes = plt.subplots(2, 1, figsize=(5.2, 6.4), sharey=False)
+
+    for ax, transition in zip(axes, transitions):
+        sns.barplot(
+            data=data[data["transition"] == transition],
+            x="n", y="speedup", hue="Compilador",
+            hue_order=["GCC", "Clang"],
+            estimator=np.median, errorbar=("pi", 50),
+            palette={"GCC": COLORS["gcc"], "Clang": COLORS["clang"]},
+            capsize=0.08, ax=ax,
+        )
         ax.axhline(1.0, color="k", lw=0.8, ls="--")
-        ax.set_xlabel("Amostras (n)")
+        ax.set_title(transition, fontsize=10)
+        ax.set_xlabel("Amostras (n)" if ax is axes[-1] else "")
+        ax.set_ylabel("Speedup (mediana sobre p; barra = IQR)", fontsize=8)
 
-    grid.axes[0, 0].set_ylabel(
-        "Speedup (mediana sobre p; barra = IQR entre p)"
-    )
-    grid.set_titles("{col_name}")
-    save_figure(grid.figure, outdir, "fig3_speedup")
+        if ax is axes[0]:
+            ax.legend(title="", frameon=False, loc="upper right")
+        else:
+            ax.get_legend().remove()
+
+    fig.tight_layout()
+    save_figure(fig, outdir, "fig3_speedup")
 
 
 def draw_heatmap(
     ax: Axes, matrix: pd.DataFrame, color_values: np.ndarray, annot_fmt: str,
     cmap: str, vmin: float, vmax: float, show_ylabels: bool, show_xlabel: bool,
+    annot_size: float = 6.0,
 ) -> None:
     """Mapa de calor n x p com valores anotados."""
     annot = np.array([
@@ -540,7 +595,8 @@ def draw_heatmap(
     sns.heatmap(
         pd.DataFrame(color_values, index=matrix.index, columns=matrix.columns),
         ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, annot=annot, fmt="",
-        annot_kws={"fontsize": 6}, cbar=False, linewidths=0.3,
+        # Original: annot_kws={"fontsize": 6}
+        annot_kws={"fontsize": annot_size}, cbar=False, linewidths=0.3,
     )
     ax.set_xlabel("p" if show_xlabel else "")
     ax.tick_params(axis="x", labelsize=7)
@@ -567,32 +623,64 @@ def pivot_np(df: pd.DataFrame, value: str) -> pd.DataFrame:
 
 
 def fig_gap_heatmap(gaps: pd.DataFrame, dtype: str, outdir: Path) -> None:
-    """Gap NE/QR: linhas = compilador, colunas = otimização."""
+    """Gap NE/QR: GCC na coluna da esquerda, Clang na da direita.
+
+    Uma linha por nível de otimização (3 linhas x 2 colunas).
+    """
     data = gaps[gaps["data_type"] == dtype]
     vmin = min(0.0, np.log10(data["gap"].min()))  # 0 = paridade (gap = 1)
     vmax = np.log10(data["gap"].max())
+
+    # Original (2 linhas x 3 colunas: compilador x otimização):
+    # fig, axes = plt.subplots(
+    #     2, 3, figsize=(13, 5.5), gridspec_kw={"hspace": 0.3, "wspace": 0.08}
+    # )
+    #
+    # for i, comp in enumerate(("gcc", "clang")):
+    #     for j, opt in enumerate(OPTIM_ORDER):
+    #         cell = data[(data["comp"] == comp) & (data["opt"] == opt)]
+    #         matrix = pivot_np(cell, "gap")
+    #
+    #         draw_heatmap(
+    #             axes[i, j], matrix, np.log10(matrix.to_numpy()),
+    #             "{:.1f}", "mako_r", vmin, vmax,
+    #             show_ylabels=(j == 0), show_xlabel=(i == 1),
+    #         )
+    #         axes[i, j].set_title(
+    #             f"{COMPILER_LABEL[comp]} / {opt}", fontsize=10
+    #         )
+    #
+    # mappable = plt.cm.ScalarMappable(
+    #     cmap="mako_r", norm=plt.Normalize(vmin, vmax)
+    # )
+    # cbar = fig.colorbar(mappable, ax=axes, shrink=0.8, pad=0.02)
+
     fig, axes = plt.subplots(
-        2, 3, figsize=(13, 5.5), gridspec_kw={"hspace": 0.3, "wspace": 0.08}
+        3, 2, figsize=(5.6, 8.6), gridspec_kw={"hspace": 0.5, "wspace": 0.08}
     )
 
-    for i, comp in enumerate(("gcc", "clang")):
-        for j, opt in enumerate(OPTIM_ORDER):
+    for i, opt in enumerate(OPTIM_ORDER):
+        for j, comp in enumerate(("gcc", "clang")):
             cell = data[(data["comp"] == comp) & (data["opt"] == opt)]
             matrix = pivot_np(cell, "gap")
 
             draw_heatmap(
                 axes[i, j], matrix, np.log10(matrix.to_numpy()),
                 "{:.1f}", "mako_r", vmin, vmax,
-                show_ylabels=(j == 0), show_xlabel=(i == 1),
+                show_ylabels=(j == 0), show_xlabel=(i == 2),
+                annot_size=5.0,
             )
             axes[i, j].set_title(
-                f"{COMPILER_LABEL[comp]} / {opt}", fontsize=10
+                f"{COMPILER_LABEL[comp]} / {opt}", fontsize=9
             )
 
     mappable = plt.cm.ScalarMappable(
         cmap="mako_r", norm=plt.Normalize(vmin, vmax)
     )
-    cbar = fig.colorbar(mappable, ax=axes, shrink=0.8, pad=0.02)
+    cbar = fig.colorbar(
+        mappable, ax=axes, orientation="horizontal",
+        shrink=0.8, pad=0.1, aspect=35,
+    )
 
     ticks = [t for t in (1, 2, 4, 8, 16) if vmin <= np.log10(t) <= vmax]
     cbar.set_ticks([np.log10(t) for t in ticks])
@@ -604,7 +692,7 @@ def fig_gap_heatmap(gaps: pd.DataFrame, dtype: str, outdir: Path) -> None:
 def fig_speedup_heatmap(
     speedups: pd.DataFrame, dtype: str, outdir: Path
 ) -> None:
-    """Speedup O1 -> O3+native do NE, n x p, por compilador."""
+    """Speedup O1 -> O3+native do NE, n x p: GCC em cima, Clang embaixo."""
     data = speedups[
         (speedups["data_type"] == dtype) &
         (speedups["transition"] == "O1 → O3+native")
@@ -612,27 +700,55 @@ def fig_speedup_heatmap(
     limit = float(
         np.log2(max(data["speedup"].max(), 1.0 / data["speedup"].min()))
     )
+
+    # Original (1 linha x 2 colunas, lado a lado):
+    # fig, axes = plt.subplots(
+    #     1, 2, figsize=(10, 3.4), gridspec_kw={"wspace": 0.08}
+    # )
+    #
+    # for j, comp in enumerate(("gcc", "clang")):
+    #     matrix = pivot_np(data[data["comp"] == comp], "speedup")
+    #
+    #     draw_heatmap(
+    #         axes[j], matrix, np.log2(matrix.to_numpy()), "{:.2f}", "RdBu",
+    #         -limit, limit, show_ylabels=(j == 0), show_xlabel=True,
+    #     )
+    #     axes[j].set_title(
+    #         f"{COMPILER_LABEL[comp]}: O1 → O3+native", fontsize=10
+    #     )
+    #
+    # mappable = plt.cm.ScalarMappable(
+    #     cmap="RdBu", norm=plt.Normalize(-limit, limit)
+    # )
+    # cbar = fig.colorbar(mappable, ax=axes, shrink=0.85, pad=0.02)
+    #
+    # cbar.set_label("log2(speedup)  (> 0: native mais rapido)")
+
     fig, axes = plt.subplots(
-        1, 2, figsize=(10, 3.4), gridspec_kw={"wspace": 0.08}
+        2, 1, figsize=(4.8, 6.8), gridspec_kw={"hspace": 0.4}
     )
 
-    for j, comp in enumerate(("gcc", "clang")):
+    for i, comp in enumerate(("gcc", "clang")):
         matrix = pivot_np(data[data["comp"] == comp], "speedup")
 
         draw_heatmap(
-            axes[j], matrix, np.log2(matrix.to_numpy()), "{:.2f}", "RdBu",
-            -limit, limit, show_ylabels=(j == 0), show_xlabel=True,
+            axes[i], matrix, np.log2(matrix.to_numpy()), "{:.2f}", "RdBu",
+            -limit, limit, show_ylabels=True, show_xlabel=(i == 1),
+            annot_size=6.0,
         )
-        axes[j].set_title(
+        axes[i].set_title(
             f"{COMPILER_LABEL[comp]}: O1 → O3+native", fontsize=10
         )
 
     mappable = plt.cm.ScalarMappable(
         cmap="RdBu", norm=plt.Normalize(-limit, limit)
     )
-    cbar = fig.colorbar(mappable, ax=axes, shrink=0.85, pad=0.02)
+    cbar = fig.colorbar(
+        mappable, ax=axes, orientation="horizontal",
+        shrink=0.8, pad=0.1, aspect=35,
+    )
 
-    cbar.set_label("log2(speedup)  (> 0: native mais rapido)")
+    cbar.set_label("log2(speedup)  (> 0: native mais rápido)")
     save_figure(fig, outdir, "fig5_speedup_o1_native_heatmap")
 
 
@@ -898,7 +1014,8 @@ def main() -> None:
     fig_time_vs_p(agg, args.dtype, args.outdir)
     fig_time_vs_p(
         agg, args.dtype, args.outdir, ycol="median_norm",
-        name="fig2b_ns_por_np2", ylabel=r"Tempo mediano por $n\,p^2$ (ns)"
+        name="fig2b_ns_por_np2", ylabel=r"Tempo mediano por $n\,p^2$ (ns)",
+        stacked=True,
     )
     fig_speedup_bars(speedups, args.dtype, args.outdir)
     fig_gap_heatmap(gaps, args.dtype, args.outdir)
