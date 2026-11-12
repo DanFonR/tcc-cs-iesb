@@ -4,9 +4,8 @@
 ## Sobre
 
 Este é o repositório do Trabalho de Conclusão de Curso sobre compiladores e
-algoritmos de aprendizado de máquina.
-
-<!-- Escrever resumo do projeto -->
+algoritmos de aprendizado de máquina. Para mais informações,
+[leia o artigo](./thesis/TCC.pdf).
 
 ## Dependências
 
@@ -14,9 +13,8 @@ algoritmos de aprendizado de máquina.
 - GNU Make 4.4.1-3
 - liblapacke e liblapacke-dev 3.12.1-7
 - libopenblas 0.3.32+ds-5
-- GNU Compiler Collection (GCC)
-- LLVM (Clang)
-- OpenMP
+- GNU Compiler Collection (GCC 15)
+- LLVM (Clang 21)
 
 ## Execução
 
@@ -39,4 +37,4 @@ make clean
 
 Esse projeto usa a licença MIT. [Leia o arquivo](./LICENSE) para mais detalhes.
 
-Copyright © 2026 Dannyel Fontenele Ribeiro
+Copyright © 2026 Dannyel Fontenele Ribeiro.
